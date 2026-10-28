@@ -1,36 +1,7 @@
-import {
-  BILLING_CURRENCIES,
-  BILLING_INTERVALS,
-  BILLING_PLAN_IDS,
-  type BillingCurrency,
-  type BillingInterval,
-  type BillingPlanId,
-  isBillingAmount,
-} from "@openbot/contracts/billing";
+import type { BillingCurrency, BillingInterval, BillingPlanId } from "@openbot/contracts/billing";
 import { FIRST_TOUCH_CAMPAIGN_FIELDS, type FirstTouch, parseFirstTouch } from "@openbot/contracts/first-touch";
-import {
-  HOSTED_SERVER_ENTRY_POINTS,
-  HOSTED_SERVER_ERRORS,
-  HOSTED_SERVER_SIZE_NAMES,
-  type HostedServerEntryPoint,
-  type HostedServerError,
-  type HostedServerSize,
-} from "@openbot/contracts/hosted-servers";
-import { isOneOf } from "@openbot/contracts/runtime-values";
-import { Effect, Schema } from "effect";
-
-/** The same OpenPanel project as the desktop app and the website. ANALYTICS.md is the contract. */
-const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
-/**
- * The current generation. Generation 10 adds the account events, first-touch properties, and
- * `reactivated` and `end_reason` on plan events. Generation 11 adds the license to the billing events
- * (`product`, `users`, `direction`), `entry_point` on `checkout_started`, and the license totals of
- * `billing_snapshot`. A billing event without `product` is from a server plan. No generation 10
- * property changes.
- */
-export const ACCOUNT_ANALYTICS_SCHEMA_VERSION = 11;
-const SEND_TIMEOUT_MS = 5_000;
-const ACCOUNT_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/u;
+import type { HostedServerEntryPoint, HostedServerError, HostedServerSize } from "@openbot/contracts/hosted-servers";
+import type { Effect } from "effect";
 
 const BILLING_ACTIONS = [
   "checkout_started",
@@ -60,11 +31,9 @@ type HostedServerAction = (typeof HOSTED_SERVER_ACTIONS)[number];
 
 const PORTAL_FLOWS = ["manage", "update", "cancel"] as const;
 /** What a billing event is for: a hosted server plan or the commercial license. */
-export const BILLING_PRODUCTS = ["server", "license"] as const;
-export type BillingProduct = (typeof BILLING_PRODUCTS)[number];
+export type BillingProduct = "server" | "license";
 /** On `plan_changed`: the new plan or user count costs more (`up`) or less (`down`). */
-export const PLAN_CHANGE_DIRECTIONS = ["up", "down"] as const;
-export type PlanChangeDirection = (typeof PLAN_CHANGE_DIRECTIONS)[number];
+export type PlanChangeDirection = "up" | "down";
 /**
  * The largest license user count that analytics accepts. The app sells up to 25 users; a license
  * from the Stripe Dashboard can have more, so the bound only stops a value that is not a count.
@@ -85,8 +54,6 @@ export type AccountSurface = (typeof ACCOUNT_SURFACES)[number];
 /** Where the account service learned the first touch of an account. */
 const ATTRIBUTION_SOURCES = ["sign_in", "checkout"] as const;
 export type AttributionSource = (typeof ATTRIBUTION_SOURCES)[number];
-
-type AnalyticsProperties = Record<string, string | number | boolean>;
 
 export type AccountAnalyticsEvent =
   | {
@@ -142,95 +109,9 @@ export interface AccountAnalyticsOptions {
   schedule: (send: Effect.Effect<void>) => void;
 }
 
-class AnalyticsDeliveryError extends Schema.TaggedError<AnalyticsDeliveryError>()("AnalyticsDeliveryError", {}) {}
-
-export function createAccountAnalytics(options: AccountAnalyticsOptions): AccountAnalytics {
-  const clientId = options.clientId?.trim();
-  const clientSecret = options.clientSecret?.trim();
-  if (!clientId || !clientSecret) return NO_ACCOUNT_ANALYTICS;
-  const send = Effect.fn("AccountAnalytics.send")(function* (
-    accountId: string,
-    event: AccountAnalyticsEvent,
-    properties: AnalyticsProperties,
-  ) {
-    const response = yield* Effect.tryPromise({
-      try: (signal) =>
-        options.fetch(`${OPENPANEL_API_URL}/track`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "openpanel-client-id": clientId,
-            "openpanel-client-secret": clientSecret,
-          },
-          body: JSON.stringify({ type: "track", payload: { name: event.name, profileId: accountId, properties } }),
-          signal: AbortSignal.any([signal, AbortSignal.timeout(SEND_TIMEOUT_MS)]),
-        }),
-      catch: () => new AnalyticsDeliveryError({}),
-    });
-    if (!response.ok) console.warn("Account analytics send failed.", { status: response.status });
-  });
-  return {
-    track(accountId, event) {
-      const properties = accountEventProperties(event);
-      if (!properties || !ACCOUNT_ID_PATTERN.test(accountId)) return;
-      options.schedule(
-        send(accountId, event, properties).pipe(
-          Effect.catch(() => Effect.sync(() => console.warn("Account analytics send failed."))),
-        ),
-      );
-    },
-  };
-}
-
-/**
- * The properties of one event, checked at runtime against the allowlists. A value that is not on a
- * list is dropped, and an unknown action drops the event.
- */
-function accountEventProperties(event: AccountAnalyticsEvent): AnalyticsProperties | null {
-  const properties: AnalyticsProperties = {
-    surface: "account_api",
-    environment: "production",
-    event_schema_version: ACCOUNT_ANALYTICS_SCHEMA_VERSION,
-  };
-  if (event.name === "billing_action") {
-    if (!isOneOf(BILLING_ACTIONS, event.action)) return null;
-    properties.action = event.action;
-    const product = isOneOf(BILLING_PRODUCTS, event.product) ? event.product : "server";
-    properties.product = product;
-    if (product === "server" && isOneOf(BILLING_PLAN_IDS, event.plan)) properties.plan = event.plan;
-    if (product === "license" && isAnalyticsLicenseUsers(event.users)) properties.users = event.users;
-    if (event.action === "plan_changed" && isOneOf(PLAN_CHANGE_DIRECTIONS, event.direction))
-      properties.direction = event.direction;
-    if (event.action === "checkout_started" && isOneOf(HOSTED_SERVER_ENTRY_POINTS, event.entryPoint))
-      properties.entry_point = event.entryPoint;
-    if (isOneOf(BILLING_INTERVALS, event.interval)) properties.interval = event.interval;
-    if (isOneOf(BILLING_CURRENCIES, event.currency)) {
-      properties.currency = event.currency;
-      if (isBillingAmount(event.amount)) properties.amount = event.amount;
-    }
-    if (isOneOf(PORTAL_FLOWS, event.flow)) properties.flow = event.flow;
-    if (event.action === "plan_started" && typeof event.reactivated === "boolean")
-      properties.reactivated = event.reactivated;
-    if (event.action === "plan_ended" && isOneOf(PLAN_END_REASONS, event.endReason))
-      properties.end_reason = event.endReason;
-    return properties;
-  }
-  if (event.name === "account_created") {
-    if (!isOneOf(ACCOUNT_SURFACES, event.surface)) return null;
-    return { ...properties, sign_in_surface: event.surface, ...firstTouchProperties(event.firstTouch) };
-  }
-  if (event.name === "account_attributed") {
-    const touch = firstTouchProperties(event.firstTouch);
-    if (!isOneOf(ATTRIBUTION_SOURCES, event.via) || !touch.first_touch_source) return null;
-    return { ...properties, recorded_via: event.via, ...touch };
-  }
-  if (event.name !== "hosted_server_action" || !isOneOf(HOSTED_SERVER_ACTIONS, event.action)) return null;
-  properties.action = event.action;
-  if (isOneOf(BILLING_PLAN_IDS, event.plan)) properties.plan = event.plan;
-  if (isOneOf(HOSTED_SERVER_SIZE_NAMES, event.size)) properties.size = event.size;
-  if (isOneOf(WAKE_REASONS, event.reason)) properties.reason = event.reason;
-  if (isOneOf(HOSTED_SERVER_ERRORS, event.error)) properties.error = event.error;
-  return properties;
+/** This fork sends no account analytics. */
+export function createAccountAnalytics(_options: AccountAnalyticsOptions): AccountAnalytics {
+  return NO_ACCOUNT_ANALYTICS;
 }
 
 const FIRST_TOUCH_CAMPAIGN_PROPERTIES = {
@@ -240,15 +121,6 @@ const FIRST_TOUCH_CAMPAIGN_PROPERTIES = {
   utmContent: "first_touch_utm_content",
   utmTerm: "first_touch_utm_term",
 } as const satisfies Record<(typeof FIRST_TOUCH_CAMPAIGN_FIELDS)[number], string>;
-
-/** Every property name that `firstTouchProperties` can return. */
-export const FIRST_TOUCH_PROPERTIES = [
-  "first_touch_source",
-  "first_touch_platform",
-  "first_touch_landing_page",
-  "first_touch_date",
-  ...Object.values(FIRST_TOUCH_CAMPAIGN_PROPERTIES),
-];
 
 /** The event properties of a first touch, checked again; empty without a valid one. */
 export function firstTouchProperties(value: FirstTouch | null): Record<string, string> {

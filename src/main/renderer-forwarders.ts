@@ -52,7 +52,6 @@ import { isNoUpdateAnswer } from "../backend/agent/routine-quiet-runs";
 import type { AgentService } from "../backend/agent-service";
 import { runCauseEffect } from "../backend/effect-boundary";
 import type { WorkflowNotice } from "../backend/workflows/workflows";
-import type { HostAnalytics } from "./analytics";
 import {
   closeRetainedNotification,
   desktopShowsAgentEvent,
@@ -71,7 +70,6 @@ export interface RendererForwarderDependencies {
   getChatWindows: () => BrowserWindow[];
   getAgentService: () => Pick<AgentService, "listAgents"> | null;
   getHostService: () => HostService | null;
-  getHostAnalytics: () => HostAnalytics | null;
   getRemoteServerManager: () => Pick<RemoteServerManager, "list" | "request" | "readAgentConversationPage"> | null;
   showMainWindow: (window: BrowserWindow) => void;
   /** The language every desktop notification is written in, read at the moment one is raised. */
@@ -98,7 +96,6 @@ export function createRendererForwarders({
   getChatWindows,
   getAgentService,
   getHostService,
-  getHostAnalytics,
   getRemoteServerManager,
   showMainWindow,
   getTranslate,
@@ -119,7 +116,6 @@ export function createRendererForwarders({
   }
 
   function forwardAgentEvent(serverId: string, event: AgentEvent, bufferedLive = false): void {
-    if (serverId === LOCAL_SERVER_ID) getHostAnalytics()?.handleAgentEvent(event);
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return;
     const scoped = bufferedLive ? { serverId, event, bufferedLive } : { serverId, event };

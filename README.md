@@ -335,7 +335,7 @@ See [web client delivery](docs/web-client.md) for the release gate and focused c
 | `bun run api:images` | Draw the article artwork into `apps/auth-api/content-art/` after you add an article or change a title. Commit the result; the site build fails until it matches. Needs Electron and a GPU, so run it on your own machine. |
 | `bun run api:migrate:local` | Apply D1 migrations to the local development database. |
 | `bun run api:migrate:remote` | Apply D1 migrations to the configured remote database. |
-| `bun run api:deploy` | Build and deploy the account API to Cloudflare Workers. It sets the Stripe, boat, claim and OpenPanel secret sets that are in the production environment. A set that is not there keeps the value that the Worker has. |
+| `bun run api:deploy` | Build and deploy the account API to Cloudflare Workers. It sets the Stripe, boat and claim secret sets that are in the production environment. A set that is not there keeps the value that the Worker has. |
 | `bun run api:stripe:bootstrap` | Create or update the Stripe plan catalog and the Customer Portal settings from `STRIPE_SECRET_KEY` in the encrypted `apps/auth-api/.env.dev` (shell values replace it). It refuses a live key unless you add `--live`. For local webhooks, run `stripe listen --forward-to localhost:<API port>/v1/stripe/webhook` and set the signing secret in `STRIPE_WEBHOOK_SECRET`. See [Billing](docs/architecture/servers.md#billing). |
 | `bun run hosting:setup --target=production\|test` | Set up the Stripe catalog, the Customer Portal, and the Stripe and boat webhooks of one account server, and store the webhook signing secrets: production in the `cloudflare-production` GitHub Environment, test in the encrypted `apps/auth-api/.env.dev`. See [hosted servers](docs/hosted-servers.md#production). |
 | `bun run hosting:template` | Build the boat named snapshot that new hosted servers start from. Needs `BOAT_TEMPLATE_API_KEY` and `--version`, `--appimage-url`, `--appimage-sha256` and `--auth-api-url`. See [hosted servers](docs/hosted-servers.md). |
@@ -415,9 +415,6 @@ records, and public assets. It does not carry chats, files, commands, or remote 
 The development runner advertises both Mobile Connect and its Signal service on the preferred private
 LAN interface. Restart the runner after changing networks so newly generated QR codes contain the
 current address.
-
-Production mobile analytics setup and required OpenPanel credentials are documented in
-[OpenBot Mobile](apps/mobile/README.md#openpanel-product-analytics).
 
 `mobile:go:tunnel` exposes only the Expo development server. It does not expose the local account
 API, Signal, or TURN. A phone on 5G cannot use the default LAN addresses. For a test across networks,

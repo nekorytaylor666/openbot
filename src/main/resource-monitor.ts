@@ -14,7 +14,6 @@ import {
   type WebContents,
 } from "electron";
 import { providerProcessIds } from "../backend/provider-processes";
-import type { AnalyticsResourceSource } from "./analytics";
 import { AnalyticsOperationFailure, toAnalyticsOperationFailure } from "./analytics-effects";
 import { readPreferenceFile, writePreferenceFile } from "./preference-file";
 import {
@@ -89,7 +88,7 @@ interface ResourceSample {
  * analytics sends the summary of the last closed day once. A failed sample is skipped: this must not
  * become the failure it would have recorded.
  */
-export class ResourceMonitor implements AnalyticsResourceSource {
+export class ResourceMonitor {
   readonly #options: ResourceMonitorOptions;
   readonly #summaryPath: string;
   readonly #samplesFile: { directory: string; path: string; maxBytes: number };

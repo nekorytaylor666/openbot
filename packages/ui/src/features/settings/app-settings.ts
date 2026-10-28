@@ -96,5 +96,5 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettingsValue = {
   autoDownloadUpdates: true,
   allowRemoteUpdates: true,
   autoInstallUpdates: false,
-  productAnalytics: true,
+  productAnalytics: false,
 };

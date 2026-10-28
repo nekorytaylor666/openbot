@@ -229,7 +229,7 @@ Ask the network administrator to allow these hosts over HTTPS (TCP 443) and WebS
 | `api.openbot.run` | Accounts, sign-in, teams, and hosted servers |
 | `signal.openbot.run` | Connection setup for teams and remote servers |
 | `openbot.run` | Public site and images in invitation emails |
-| `*.openbot.run` | Hosted servers and sites, and `analytics.openbot.run` |
+| `*.openbot.run` | Hosted servers and sites |
 | `github.com`, `*.githubusercontent.com` | App updates |
 
 Teams and remote servers also send WebRTC traffic to the other device or to the TURN relay that

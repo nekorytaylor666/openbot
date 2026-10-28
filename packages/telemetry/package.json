@@ -5,9 +5,7 @@
   "type": "module",
   "license": "PolyForm-Noncommercial-1.0.0",
   "exports": {
-    ".": "./src/index.ts",
-    "./browser": "./src/browser.ts",
-    "./node": "./src/node.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "bun ../../scripts/type-checker.ts --noEmit -p tsconfig.json"

@@ -400,11 +400,9 @@ servers, their webhooks and the cron continue.
 4. **Stripe Dashboard.** In live mode, in the failed-payment settings for subscriptions (Revenue
    recovery → Retries), set "If all retries for a payment fail" to cancel the subscription or to
    mark it unpaid. Both stop the server.
-5. **OpenPanel.** In the production project, make a server client. Its ID and secret send the
-   billing and server events in [ANALYTICS.md](../ANALYTICS.md). Only production gets them.
-6. **Secrets.** The `Deploy Cloudflare production` job in `.github/workflows/ci.yml` sends these
+5. **Secrets.** The `Deploy Cloudflare production` job in `.github/workflows/ci.yml` sends these
    from the `cloudflare-production` GitHub Environment. It refuses a set with only some values and a
-   Stripe key that is not live. OpenPanel credentials are required before any remote change.
+   Stripe key that is not live.
    An optional value that is not set keeps the value that the Worker has; to turn
    a feature off, run `wrangler secret delete <name>`.
 
@@ -412,7 +410,6 @@ servers, their webhooks and the cron continue.
    | --- | --- | --- |
    | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | secrets, a pair | Step 3 writes them |
    | `BOAT_API_KEY`, `BOAT_WEBHOOK_SECRET` | secrets, a pair | Step 3 writes them |
-   | `OPENPANEL_CLIENT_ID`, `OPENPANEL_CLIENT_SECRET` | required secrets, a pair | The client from step 5 |
 
    The release job sets `HOSTED_SERVER_TEMPLATE` directly on the production Worker. Normal
    deployments preserve it. A GitHub variable with that name is no longer used.
@@ -420,7 +417,7 @@ servers, their webhooks and the cron continue.
    The CI deploy is the production path: `.env.production` does not have all the values that it
    needs, such as `SITE_REPORT_HASH_SECRET`. `bun run api:deploy` sends the same names from
    `.env.production` and checks them the same way.
-7. **Check.** After the deploy, sign in with an allowed account, add a Starter server, pay, and
+6. **Check.** After the deploy, sign in with an allowed account, add a Starter server, pay, and
    connect from the desktop and the web client. Delete the server at the end.
 
 The cron runs each 5 minutes in production. An idle server stops 15 to 30 minutes after its last
@@ -428,21 +425,7 @@ use (a focus ping is use only for 30 minutes after the last user action or a new
 
 ### Sales reports
 
-The OpenPanel **Revenue and Customers** dashboard shows purchases and checkout outcomes.
-Revenue comes from verified `invoice.paid` events. It includes collected tax and discounts,
-before refunds and fees. Refunds and lost disputes are separate `billing_action` events with
-`amount_usd` (see [ANALYTICS.md](../ANALYTICS.md)); subtract them for net revenue. Amounts use USD cents. EUR and PLN amounts use the latest available
-ECB rate on or before the payment date in UTC; a refund or a dispute uses the rate of its own date, so a
-full refund can leave a small USD difference. The original currency and amount stay on the event.
-
-Daily `billing_snapshot` events show MRR and ARR. MRR includes active and overdue subscriptions,
-after discounts and before tax. Annual prices are divided by 12. Overdue MRR is separate.
-Do not sum snapshots across dates. Read each value with its `as_of` date.
-
-The account service stores source facts before it accepts a payment webhook. A separate D1
-ledger sends the events. A network failure or unknown delivery result becomes `uncertain`.
-Check OpenPanel before retrying such an event. A repeated invoice does not create new revenue.
-Checkout return, expiry, and payment failure are separate outcomes; none proves that payment occurred.
+This fork sends no sales analytics. Read revenue and subscriptions in the Stripe Dashboard.
 
 ## Build the server template
 
