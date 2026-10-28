@@ -11,7 +11,7 @@ export type SkillFrontmatterProblem =
 
 /**
  * Checks the frontmatter of a `SKILL.md` in the folder `slug`: `name` is the folder name and
- * `description` has 1 to 1024 characters. A provider can skip a skill that fails.
+ * `description` has 1 to 1024 characters. A display name that lowercases and hyphenates to the slug also matches. A provider can skip a skill that fails.
  */
 export function readSkillFrontmatter(
   text: string,
@@ -28,6 +28,12 @@ export function readSkillFrontmatter(
   if (!isDynamicRecord(metadata)) return { problem: "frontmatterInvalid" };
   const description = isString(metadata.description) ? metadata.description.trim() : "";
   if (!description || description.length > SKILL_DESCRIPTION_MAX_LENGTH) return { problem: "descriptionLength" };
-  if (metadata.name !== slug) return { description, problem: "nameMismatch" };
+  if (!isString(metadata.name) || !nameMatchesSlug(metadata.name, slug))
+    return { description, problem: "nameMismatch" };
   return { description };
+}
+
+// pstack and similar packs use a display name ("Poteto Mode") for the folder `poteto-mode`.
+function nameMatchesSlug(name: string, slug: string): boolean {
+  return name === slug || name.trim().toLowerCase().replace(/\s+/gu, "-") === slug;
 }
