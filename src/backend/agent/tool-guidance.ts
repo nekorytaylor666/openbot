@@ -62,6 +62,10 @@ export function toolGuidance(
         "For an avatar image, pass avatarPath, absolute or relative to your workspace. When needed, make a square PNG, JPEG, or WebP copy, best 512 by 512 pixels and up to 512 KB, and do not change the original. Do not combine avatarPath with avatarSeed or avatarHue; use those to go back to a generated avatar.",
         "To give an agent a local skill, call openbot.list_local_skills, then openbot.install_local_skill with its agentId. Use openbot.set_skill_enabled and openbot.uninstall_skill with the skillId from read_agent. update_profile can limit access to the workspace, turn Computer Use off, or change notifications. Only the user can give Full access, turn Computer Use on, or change auto-approve, so say when a task needs that. MCP servers apply to every agent: change them with the MCP server tools, and only when the user asks.",
       ].join("\n");
+    case "list_channels":
+    case "create_channel":
+    case "create_team":
+      return "To set up group work, create each missing agent with openbot.create_agent first, then use its id. openbot.create_channel opens a group chat where the lead takes requests that mention nobody and assigns work to members with channel tools. openbot.create_team groups agents in a sidebar section and opens a team channel with the same members. Call openbot.list_channels and openbot.list_sections first and reuse a matching channel or team.";
     case "list_sections":
     case "create_section":
     case "assign_agent_section":

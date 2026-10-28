@@ -11,6 +11,7 @@ import { isUiBlockId, UI_BLOCK_LIMITS } from "@openbot/contracts/ui-blocks";
 import { z } from "zod";
 import { advertisedJsonSchema } from "./agent/advertised-json-schema";
 import { interruptAgentToolSchema } from "./agent/agent-interrupt-tool";
+import { createChannelToolSchema, createTeamToolSchema } from "./agent/channel-setup-tools";
 import { DATA_TOOL_DEFINITIONS } from "./agent/data-tools";
 import { HISTORY_TOOL_DEFINITIONS } from "./agent/history-tools";
 import { MCP_SERVER_TOOL_DEFINITIONS } from "./agent/mcp-tools";
@@ -408,6 +409,24 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     description:
       "Create a persistent local OpenBot agent when the user asks for a new teammate. Choose its profile from the user's request and supply its first task. The new agent gets your provider, model, and reasoning effort. Set provider, model, or reasoningEffort only when the user asks for different ones; call list_models first. Use update_profile for an existing agent. After it exists, add skills with install_local_skill and routines with create_routine as needed. A new agent gets your own access and Computer Use limits.",
     shape: createAgentToolSchema.shape,
+  },
+  {
+    name: "list_channels",
+    description:
+      "List the open local channels: id, name, title, instructions, member agent ids and lead agent id. Read-only.",
+    shape: {},
+  },
+  {
+    name: "create_channel",
+    description:
+      "Create a local group channel where several agents work together, when the user asks for one. Pass member ids from list_agents (create_agent first for new members) and optionally the lead, who gets requests that mention nobody; the first member leads otherwise. Call list_channels first and reuse a matching channel.",
+    shape: createChannelToolSchema.shape,
+  },
+  {
+    name: "create_team",
+    description:
+      "Create a team of existing agents when the user asks for one: a sidebar section with the team name that the agents move into, and, unless channel is false, a team channel with the same name, these agents as members and the given lead. Create missing agents with create_agent first.",
+    shape: createTeamToolSchema.shape,
   },
   {
     name: "update_profile",

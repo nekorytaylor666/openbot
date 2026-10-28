@@ -119,6 +119,7 @@ import {
   MODEL_SWITCH_ITEM_TYPES,
   type ModelSwitchReason,
   type QueueSteerFallback,
+  SIGNED_OUT_CHANNEL_MEMBER_ID,
   sameAgentBrowserProfile,
   sameAgentModelChoice,
   WORKFLOWS_USAGE_ID,
@@ -297,6 +298,8 @@ export interface AgentServiceOptions {
    */
   prepareMcpTest?: (config: McpServerConfig) => Effect.Effect<void, unknown>;
   sidebarLayout?: AgentSidebar | null;
+  /** The person channels that agents create belong to; the signed-out local user by default. */
+  channelActor?: () => { id: string; name: string };
   /**
    * What a spawned CLI is given beyond its own binary: the stored keys, and the user's own model
    * endpoints. The main process owns both, because they carry secrets that must not reach the
@@ -446,6 +449,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #removal: AgentRemoval;
   readonly #tools: OpenBotToolRouter;
   readonly #sidebarLayout: AgentSidebar | null;
+  readonly #channelActor: () => { id: string; name: string };
   readonly #localSkillTools: (() => LocalSkillTools) | undefined;
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #developmentDefaults: boolean;
@@ -471,6 +475,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       prepareAgentWorkspace = () => Effect.void,
       hostedSites = null,
       sidebarLayout = null,
+      channelActor = () => ({ id: SIGNED_OUT_CHANNEL_MEMBER_ID, name: "You" }),
       credentials = NO_PROVIDER_CREDENTIALS,
       localSkillTools,
       routineFlowTools,
@@ -500,6 +505,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       },
     });
     this.#sidebarLayout = sidebarLayout;
+    this.#channelActor = channelActor;
     this.#profileSave = new ProfileSave(store, {
       create: (input, configure, sender) =>
         this.createAgent(
@@ -1436,6 +1442,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
           this.#requestedNewChats.add(agentId);
         },
         steerAgentMessage: (recipientAgentId, deliveryId) => this.#steerAgentMessage(recipientAgentId, deliveryId),
+        channelActor: () => this.#channelActor(),
       },
     });
   }

@@ -66,6 +66,7 @@ import type { AttachmentGateway } from "./attachment-gateway";
 import type { AttentionRegistry } from "./attention-registry";
 import { loadAvatarFile } from "./avatar-file";
 import type { BrowserUploads } from "./browser-uploads";
+import { CHANNEL_SETUP_TOOL_NAMES, handleChannelSetupTool } from "./channel-setup-tools";
 import type { ChatVisualPreviewHost } from "./chat-visual-preview";
 import type { ConversationRuntime } from "./conversation-runtime";
 import { handleDataTool } from "./data-tools";
@@ -182,6 +183,8 @@ export interface OpenBotToolRouterHooks {
    * busy-message mode is "steer". Otherwise the message waits in the queue.
    */
   steerAgentMessage(recipientAgentId: string, deliveryId: string): Effect.Effect<void>;
+  /** The person a channel that an agent creates is created for: this computer's user. */
+  channelActor(): { id: string; name: string };
 }
 
 export interface OpenBotToolRouterOptions {
@@ -961,6 +964,16 @@ export class OpenBotToolRouter {
       if (!this.#hooks.reportRoutineFailure(senderAgentId, params.turnId, reason))
         return openBotToolFailure("Use this tool only in a routine run.");
       return openBotToolResult({ status: "failed", note: "This run ends as failed. Give your answer as usual." });
+    }
+
+    if (CHANNEL_SETUP_TOOL_NAMES.has(params.tool)) {
+      const result = yield* handleChannelSetupTool(params.tool, params.arguments, {
+        channels: this.#channels,
+        actor: this.#hooks.channelActor(),
+        sidebar: this.#sidebarLayout,
+        agentIds: new Set(this.#hooks.listAgents().map((agent) => agent.id)),
+      });
+      if (result) return result;
     }
 
     const sidebarResult = yield* handleSidebarTool(
