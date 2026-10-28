@@ -133,6 +133,7 @@ import { sourceText } from "@openbot/i18n/source";
 import { createOpenBotLogger } from "@openbot/logging";
 import { classifyFailure } from "@openbot/telemetry";
 import { Cause, Deferred, Effect, Exit, Fiber, Result, Schema, Scope, Semaphore } from "effect";
+import { AgentCreators } from "./agent/agent-creators";
 import { AgentMemories } from "./agent/agent-memories";
 import { AgentRemoval, AgentRemovalFailed } from "./agent/agent-removal";
 import { AgentSettingsRefused } from "./agent/agent-settings-refused";
@@ -300,6 +301,8 @@ export interface AgentServiceOptions {
   sidebarLayout?: AgentSidebar | null;
   /** The person channels that agents create belong to; the signed-out local user by default. */
   channelActor?: () => { id: string; name: string };
+  /** Which agent created which agent; in memory only when absent. */
+  agentCreators?: AgentCreators;
   /**
    * What a spawned CLI is given beyond its own binary: the stored keys, and the user's own model
    * endpoints. The main process owns both, because they carry secrets that must not reach the
@@ -450,6 +453,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
   readonly #tools: OpenBotToolRouter;
   readonly #sidebarLayout: AgentSidebar | null;
   readonly #channelActor: () => { id: string; name: string };
+  readonly #agentCreators: AgentCreators;
   readonly #localSkillTools: (() => LocalSkillTools) | undefined;
   readonly #routineFlowTools: (() => RoutineFlowTools) | undefined;
   readonly #developmentDefaults: boolean;
@@ -476,6 +480,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
       hostedSites = null,
       sidebarLayout = null,
       channelActor = () => ({ id: SIGNED_OUT_CHANNEL_MEMBER_ID, name: "You" }),
+      agentCreators = new AgentCreators(null),
       credentials = NO_PROVIDER_CREDENTIALS,
       localSkillTools,
       routineFlowTools,
@@ -506,6 +511,7 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
     });
     this.#sidebarLayout = sidebarLayout;
     this.#channelActor = channelActor;
+    this.#agentCreators = agentCreators;
     this.#profileSave = new ProfileSave(store, {
       create: (input, configure, sender) =>
         this.createAgent(
@@ -1443,6 +1449,15 @@ export class AgentService extends EventEmitter<AgentServiceEvents> {
         },
         steerAgentMessage: (recipientAgentId, deliveryId) => this.#steerAgentMessage(recipientAgentId, deliveryId),
         channelActor: () => this.#channelActor(),
+        agentCreator: (agentId) => this.#agentCreators.creatorOf(agentId).pipe(toToolOperationFailed),
+        recordAgentCreator: (agentId, creatorAgentId) =>
+          this.#agentCreators.record(agentId, creatorAgentId).pipe(toToolOperationFailed),
+        deleteAgent: (agentId) =>
+          Effect.gen({ self: this }, function* () {
+            yield* this.deleteAgent(agentId);
+            if (this.#sidebarLayout) yield* this.#sidebarLayout.removeAgent(agentId);
+            yield* this.#agentCreators.forget(agentId);
+          }).pipe(toToolOperationFailed),
       },
     });
   }

@@ -18,6 +18,7 @@ import { MCP_SERVER_TOOL_DEFINITIONS } from "./agent/mcp-tools";
 import { MEMORY_RECALL_TOOL_DEFINITIONS } from "./agent/memory-tool-inputs";
 import {
   createAgentToolSchema,
+  deleteAgentToolSchema,
   listModelsToolSchema,
   readAgentToolSchema,
   updateAgentsToolSchema,
@@ -409,6 +410,12 @@ export const OPENBOT_TOOL_DEFINITIONS: readonly OpenBotToolDefinition[] = [
     description:
       "Create a persistent local OpenBot agent when the user asks for a new teammate. Choose its profile from the user's request and supply its first task. The new agent gets your provider, model, and reasoning effort. Set provider, model, or reasoningEffort only when the user asks for different ones; call list_models first. Use update_profile for an existing agent. After it exists, add skills with install_local_skill and routines with create_routine as needed. A new agent gets your own access and Computer Use limits.",
     shape: createAgentToolSchema.shape,
+  },
+  {
+    name: "delete_agent",
+    description:
+      "Delete a local OpenBot agent that you created with create_agent, once its work is done and you have its result, such as a temporary worker. It removes the agent, its chats and its workspace. You cannot delete agents that you did not create, or yourself.",
+    shape: deleteAgentToolSchema.shape,
   },
   {
     name: "list_channels",

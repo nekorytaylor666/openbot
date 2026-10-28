@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -86,3 +87,29 @@ export const listHomeSkills = Effect.fn("HomeSkills.list")(function* () {
   }
   return skills;
 });
+
+/** An OpenBot copy of the user's skills, such as pstack rewritten for OpenBot's tools. Same-named skills there win. */
+export const OPENBOT_SKILL_FOLDER = ".agents/openbot-skills";
+/** In the OpenBot skill folder: the other skill folders, one absolute path a line, that Pi loads after it. */
+const OPENBOT_SKILL_ROOTS_FILE = ".pi-skill-roots";
+
+/**
+ * Pi keeps the first skill of a name it finds and lists the user's folders first, so the OpenBot copy
+ * only wins when Pi skips its discovery and loads the folders in this order. No roots file: no change.
+ */
+export const piSkillArguments = Effect.fn("HomeSkills.piSkillArguments")(function* (home = homedir()) {
+  const folder = join(home, OPENBOT_SKILL_FOLDER);
+  const roots = yield* optionalRead(() => readFile(join(folder, OPENBOT_SKILL_ROOTS_FILE), "utf8"));
+  if (Option.isNone(roots)) return [];
+  const paths = roots.value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("/") && line !== folder);
+  return ["--no-skills", ...[folder, ...paths].flatMap((path) => ["--skill", path])];
+});
+
+/** The `SKILL.md` that a home skill tag names: the OpenBot copy when one exists. */
+export function homeSkillFile(slug: string, home = homedir()): string {
+  const copy = join(home, OPENBOT_SKILL_FOLDER, slug, "SKILL.md");
+  return existsSync(copy) ? copy : join(homeSkillRoot(home), slug, "SKILL.md");
+}

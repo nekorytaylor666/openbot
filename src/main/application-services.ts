@@ -101,6 +101,7 @@ import {
   shell,
   systemPreferences,
 } from "electron";
+import { AGENT_CREATORS_FILE, AgentCreators } from "../backend/agent/agent-creators";
 import { pasteCodeLoginSupported } from "../backend/agent/cli-code-login";
 import { toMcpGatewayFailed } from "../backend/agent/mcp-gateway";
 import { ProviderAccountStore } from "../backend/agent/provider-account-store";
@@ -1647,6 +1648,7 @@ export async function createApplicationServices({
     },
     sidebarLayout,
     channelActor: () => host.channelActor(),
+    agentCreators: new AgentCreators(join(app.getPath("userData"), AGENT_CREATORS_FILE)),
     preferredModel: setupState.preferredModel,
     // Only a dev build leads with the OpenCode development model; a packaged app keeps the
     // built-in default.

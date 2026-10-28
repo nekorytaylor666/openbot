@@ -89,6 +89,7 @@ import {
 } from "./model-tools";
 import {
   createAgentToolSchema,
+  deleteAgentToolSchema,
   listModelsToolSchema,
   PROFILE_TOOL_NAMES,
   profileToolErrorMessage,
@@ -183,6 +184,11 @@ export interface OpenBotToolRouterHooks {
    * busy-message mode is "steer". Otherwise the message waits in the queue.
    */
   steerAgentMessage(recipientAgentId: string, deliveryId: string): Effect.Effect<void>;
+  /** The agent that created an agent with create_agent, or null. */
+  agentCreator(agentId: string): Effect.Effect<string | null, ToolOperationFailed>;
+  recordAgentCreator(agentId: string, creatorAgentId: string): Effect.Effect<void, ToolOperationFailed>;
+  /** Deletes an agent with its data, as the app's own delete does. */
+  deleteAgent(agentId: string): Effect.Effect<void, ToolOperationFailed>;
   /** The person a channel that an agent creates is created for: this computer's user. */
   channelActor(): { id: string; name: string };
 }
@@ -930,6 +936,19 @@ export class OpenBotToolRouter {
 
     if (params.tool === "create_agent") return yield* this.#createAgent(params, senderAgentId);
 
+    if (params.tool === "delete_agent") {
+      const { agentId } = deleteAgentToolSchema.parse(params.arguments, { reportInput: true });
+      if (agentId === senderAgentId) return openBotToolFailure("You cannot delete yourself.");
+      if (!this.#hooks.listAgents().some((agent) => agent.id === agentId))
+        return openBotToolFailure(`No agent has the id ${agentId}. Call list_agents.`);
+      if ((yield* this.#hooks.agentCreator(agentId)) !== senderAgentId)
+        return openBotToolFailure(
+          "You can delete only agents that you created with create_agent. Ask the user to delete this one.",
+        );
+      yield* this.#hooks.deleteAgent(agentId);
+      return openBotToolResult({ deleted: agentId });
+    }
+
     if (params.tool === "update_profile") return yield* this.#updateProfile(params, senderAgentId);
 
     if (params.tool === "update_agents") return yield* handleUpdateAgentsTool(params, senderAgentId, this.#hooks);
@@ -1518,6 +1537,7 @@ export class OpenBotToolRouter {
         sidebar && sectionId !== null
           ? yield* sidebar.withProfileAssignment(sectionId, create).pipe(toToolOperationFailed)
           : yield* create().pipe(toToolOperationFailed);
+      yield* this.#hooks.recordAgentCreator(created.id, senderAgentId);
       return { success: true, contentItems: [{ type: "inputText", text: JSON.stringify(created) }] };
     },
     Effect.catchDefect((cause) => Effect.fail(new ToolOperationFailed({ cause }))),

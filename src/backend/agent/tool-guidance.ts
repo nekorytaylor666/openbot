@@ -62,6 +62,8 @@ export function toolGuidance(
         "For an avatar image, pass avatarPath, absolute or relative to your workspace. When needed, make a square PNG, JPEG, or WebP copy, best 512 by 512 pixels and up to 512 KB, and do not change the original. Do not combine avatarPath with avatarSeed or avatarHue; use those to go back to a generated avatar.",
         "To give an agent a local skill, call openbot.list_local_skills, then openbot.install_local_skill with its agentId. Use openbot.set_skill_enabled and openbot.uninstall_skill with the skillId from read_agent. update_profile can limit access to the workspace, turn Computer Use off, or change notifications. Only the user can give Full access, turn Computer Use on, or change auto-approve, so say when a task needs that. MCP servers apply to every agent: change them with the MCP server tools, and only when the user asks.",
       ].join("\n");
+    case "delete_agent":
+      return "Delete only temporary agents that you created for one piece of work, after you read their result. A deleted agent loses its chats and workspace, so copy anything you still need out of its workspace first.";
     case "list_channels":
     case "create_channel":
     case "create_team":

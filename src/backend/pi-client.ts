@@ -12,6 +12,7 @@ import { type AgentClient, type DiagnosticOrigin, MissingPiSessionError, Request
 import { type AgentCliInfo, cliPathEnvironment, cliSpawnTarget } from "./cli";
 import { runCauseEffect } from "./effect-boundary";
 import { isMissingFileError } from "./file-errors";
+import { piSkillArguments } from "./home-skills";
 import { type DynamicToolNamespace, LocalMcpBridge, type LocalMcpSession } from "./local-mcp-bridge";
 import {
   agentMcpServers,
@@ -486,7 +487,7 @@ export class PiAgentClient extends EventEmitter<ClientEvents> implements AgentCl
       args.push(
         ...(this.options.profileGeneration
           ? ["--no-tools", "--no-extensions", "--no-mcp"]
-          : ["--extension", extension.path]),
+          : ["--extension", extension.path, ...(yield* piSkillArguments())]),
       );
       const instructions = getString(params, "developerInstructions");
       if (instructions) args.push("--append-system-prompt", instructions);

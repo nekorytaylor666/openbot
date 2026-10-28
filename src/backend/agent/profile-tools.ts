@@ -175,6 +175,10 @@ export const updateAgentsToolSchema = z
   })
   .strict();
 
+export const deleteAgentToolSchema = z
+  .object({ agentId: z.string().trim().min(1).max(INPUT_LIMITS.identifier) })
+  .strict();
+
 export const readAgentToolSchema = z
   .object({
     agentId: z
