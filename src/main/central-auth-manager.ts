@@ -48,7 +48,6 @@ import {
   decodeEmailChallenge,
   decodeMobileConnectedDevices,
   decodeMobileConnectLinkResponse,
-  decodeRecordHealth,
   decodeRegisteredRemoteHost,
   decodeRemoteHosts,
   decodeRemoteInvitePreview,
@@ -154,6 +153,9 @@ export type VerifiedRemoteSessionTicket = Pick<
   role: RemoteMemberRole;
   clientPublicKey: string;
 };
+
+/** The account without a cloud session: local agents work, cloud features answer 401 without a request. */
+export const LOCAL_USER: CentralAuthUser = { id: "local", email: "local@openbot.invalid", name: "Local", avatarUrl: null };
 
 export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   readonly #options: Required<CentralAuthManagerOptions>;
@@ -1370,10 +1372,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
     } else {
       logger.warn("The stored account session was not read: secure storage is unavailable.");
     }
-    if (!this.#sessionToken) {
-      yield* this.#startupRequestEffect("/health/live", { method: "GET" }, decodeRecordHealth);
-      return this.#setState({ status: "signed_out" });
-    }
+    if (!this.#sessionToken) return this.#setState({ status: "signed_in", user: LOCAL_USER });
     const sessionToken = this.#sessionToken;
     return yield* Effect.gen({ self: this }, function* () {
       const user = yield* this.#startupRequestEffect("/v1/me", { method: "GET" }, decodeCentralAuthUser, sessionToken);
@@ -1383,7 +1382,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         Effect.gen({ self: this }, function* () {
           if (error instanceof AuthApiError && error.status === 401) {
             yield* this.#clearStoredSessionEffect();
-            return this.#setState({ status: "signed_out" });
+            return this.#setState({ status: "signed_in", user: LOCAL_USER });
           }
           return yield* new CentralAuthOperationError({ cause: error });
         }),
@@ -1636,7 +1635,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         }
       }
       yield* this.#clearStoredSessionEffect();
-      return this.#setState({ status: "signed_out" });
+      return this.#setState({ status: "signed_in", user: LOCAL_USER });
     },
     (operation) => this.#owned(operation),
   ).bind(this);
